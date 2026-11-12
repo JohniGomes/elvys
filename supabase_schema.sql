@@ -30,11 +30,10 @@ create index if not exists idx_lanc_empresa    on lancamentos(empresa);
 create index if not exists idx_lanc_tipo       on lancamentos(tipo);
 create index if not exists idx_lanc_status     on lancamentos(status);
 
--- Configuração do app (login/senha)
-create table if not exists app_config (
-  key   text primary key,
-  value text
-);
-alter table app_config disable row level security;
-grant all on app_config to anon;
-grant all on app_config to authenticated;
+-- SEGURANÇA: só usuários logados (Supabase Auth) acessam os lançamentos
+alter table lancamentos enable row level security;
+revoke all on lancamentos from anon;
+drop policy if exists "auth_all" on lancamentos;
+create policy "auth_all" on lancamentos for all to authenticated using (true) with check (true);
+grant all on lancamentos to authenticated;
+drop table if exists app_config;

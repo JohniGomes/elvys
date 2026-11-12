@@ -8,7 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css?v=20261112d">
+  <link rel="stylesheet" href="css/styles.css?v=20261112e">
 </head>
 <body>
 <div id="loginOverlay">
@@ -16,13 +16,13 @@
     <div class="logo-pair"><img src="assets/anagesso.png" alt="Anagesso Drywall"><span class="logo-sep"></span><img src="assets/tamboleco.png" alt="Tamboleco" class="mascote"></div>
     <h2>Financeiro</h2>
     <form id="formLogin" onsubmit="event.preventDefault();Auth.entrar()">
-      <div class="form-group"><label>Usuário</label><input id="lUser" autocomplete="username" placeholder="Seu usuário"></div>
+      <div class="form-group"><label>E-mail</label><input id="lUser" type="email" autocomplete="username" placeholder="seu@email.com"></div>
       <div class="form-group"><label>Senha</label><input id="lPass" type="password" autocomplete="current-password" placeholder="Sua senha"></div>
       <button class="btn-save wide" type="submit">Entrar</button>
       <a class="link" onclick="Auth.modo('senha')">Alterar senha</a>
     </form>
     <form id="formSenha" class="hidden" onsubmit="event.preventDefault();Auth.trocarSenha()">
-      <div class="form-group"><label>Usuário</label><input id="sUser" autocomplete="username"></div>
+      <div class="form-group"><label>E-mail</label><input id="sUser" type="email" autocomplete="username"></div>
       <div class="form-group"><label>Senha atual</label><input id="sAtual" type="password" autocomplete="current-password"></div>
       <div class="form-group"><label>Nova senha</label><input id="sNova" type="password" autocomplete="new-password"></div>
       <div class="form-group"><label>Confirmar nova senha</label><input id="sConf" type="password" autocomplete="new-password"></div>
@@ -113,7 +113,7 @@
 
 <script src="js/config.js?v=20261112b"></script>
 <script src="js/api.js?v=20261112b"></script>
-<script src="js/app.js?v=20261112d"></script>
-<script src="js/auth.js?v=20261112d"></script>
+<script src="js/app.js?v=20261112e"></script>
+<script src="js/auth.js?v=20261112e"></script>
 </body>
 </html>
