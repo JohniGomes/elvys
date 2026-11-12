@@ -37,3 +37,15 @@ drop policy if exists "auth_all" on lancamentos;
 create policy "auth_all" on lancamentos for all to authenticated using (true) with check (true);
 grant all on lancamentos to authenticated;
 drop table if exists app_config;
+
+-- Categorias dinâmicas (compartilhadas entre aparelhos)
+create table if not exists categorias (
+  empresa text not null,
+  nome    text not null,
+  primary key (empresa, nome)
+);
+alter table categorias enable row level security;
+revoke all on categorias from anon;
+drop policy if exists "auth_all" on categorias;
+create policy "auth_all" on categorias for all to authenticated using (true) with check (true);
+grant all on categorias to authenticated;

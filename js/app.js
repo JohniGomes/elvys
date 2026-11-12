@@ -21,18 +21,42 @@ function effStatus(r) {
 const isLiquidado = r => r.status === 'pago' || r.status === 'recebido';
 
 const Cats = {
-  _get() { try { return JSON.parse(localStorage.getItem(CONFIG.CATS_KEY)) || {}; } catch { return {}; } },
-  forEmpresa(e) { return this._get()[e] || CONFIG.defaultCats[e] || ['Outros']; },
-  remove(e, cat) {
-    const data = this._get();
-    data[e] = this.forEmpresa(e).filter(c => c !== cat);
-    localStorage.setItem(CONFIG.CATS_KEY, JSON.stringify(data));
+  cache: {},
+
+  async load() {
+    const { data, error } = await Api._db.from('categorias').select('empresa,nome').order('nome');
+    if (error) { this.cache = {}; showToast('Rode o SQL das categorias no Supabase.', 4000); return; }
+    if (!data.length) await this.seed();
+    else this.fill(data);
   },
-  add(e, cat) {
-    const data = this._get();
-    if (!data[e]) data[e] = [...this.forEmpresa(e)];
-    if (!data[e].includes(cat)) data[e].push(cat);
-    localStorage.setItem(CONFIG.CATS_KEY, JSON.stringify(data));
+
+  fill(rows) {
+    this.cache = {};
+    rows.forEach(r => (this.cache[r.empresa] ||= []).push(r.nome));
+  },
+
+  // 1ª vez: leva as categorias do navegador (se houver) ou as padrão para o Supabase
+  async seed() {
+    let base = CONFIG.defaultCats;
+    try { const l = JSON.parse(localStorage.getItem(CONFIG.CATS_KEY)); if (l) base = { ...base, ...l }; } catch (_) {}
+    const rows = Object.entries(base).flatMap(([empresa, nomes]) => nomes.map(nome => ({ empresa, nome })));
+    const { error } = await Api._db.from('categorias').insert(rows);
+    if (!error) { this.fill(rows); localStorage.removeItem(CONFIG.CATS_KEY); }
+  },
+
+  forEmpresa(e) { return this.cache[e] || []; },
+
+  async add(e, cat) {
+    if (this.forEmpresa(e).includes(cat)) return;
+    const { error } = await Api._db.from('categorias').insert({ empresa: e, nome: cat });
+    if (error) return showToast('Erro: ' + error.message, 4000);
+    (this.cache[e] ||= []).push(cat);
+  },
+
+  async remove(e, cat) {
+    const { error } = await Api._db.from('categorias').delete().eq('empresa', e).eq('nome', cat);
+    if (error) return showToast('Erro: ' + error.message, 4000);
+    this.cache[e] = this.forEmpresa(e).filter(c => c !== cat);
   },
 };
 
@@ -58,20 +82,20 @@ const Modal = {
     if (sel) el.value = sel;
   },
 
-  novaCat() {
+  async novaCat() {
     const nome = (prompt('Nome da nova categoria:') || '').trim();
     if (!nome) return;
     const emp = document.getElementById('fEmpresa').value;
-    Cats.add(emp, nome);
+    await Cats.add(emp, nome);
     this._updateCats(nome);
   },
 
-  removerCat() {
+  async removerCat() {
     const emp = document.getElementById('fEmpresa').value;
     const cat = document.getElementById('fCategoria').value;
     if (!cat) return showToast('Nenhuma categoria selecionada.');
     if (!confirm(`Excluir a categoria "${cat}" de ${emp}? Lançamentos já feitos não são alterados.`)) return;
-    Cats.remove(emp, cat);
+    await Cats.remove(emp, cat);
     this._updateCats();
     showToast('Categoria excluída.');
   },
@@ -159,6 +183,7 @@ const App = {
   charts: [],
 
   async init() {
+    await Cats.load();
     await this.atualizarAnos(true);
     document.getElementById('fEmp').innerHTML = '<option value="">Todas</option>' + CONFIG.empresas.map(e => `<option>${e}</option>`).join('');
     await this.load();
