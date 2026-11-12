@@ -29,3 +29,12 @@ create index if not exists idx_lanc_vencimento on lancamentos(vencimento);
 create index if not exists idx_lanc_empresa    on lancamentos(empresa);
 create index if not exists idx_lanc_tipo       on lancamentos(tipo);
 create index if not exists idx_lanc_status     on lancamentos(status);
+
+-- Configuração do app (login/senha)
+create table if not exists app_config (
+  key   text primary key,
+  value text
+);
+alter table app_config disable row level security;
+grant all on app_config to anon;
+grant all on app_config to authenticated;
