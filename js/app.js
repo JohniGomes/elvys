@@ -83,6 +83,8 @@ const Modal = {
     document.getElementById('fPagamento').value = d ? (d.pagamento || '') : '';
     document.getElementById('fObs').value = d ? (d.obs || '') : '';
     document.getElementById('btnDelete').style.display = d ? 'block' : 'none';
+    document.getElementById('gParcelas').style.display = d ? 'none' : 'block';
+    document.getElementById('fParcelas').value = 1;
   },
 
   async save() {
@@ -101,10 +103,25 @@ const Modal = {
       pagamento: document.getElementById('fPagamento').value || null,
       obs: document.getElementById('fObs').value.trim() || null,
     };
+    const n = this._item ? 1 : Math.max(1, Math.min(360, parseInt(document.getElementById('fParcelas').value) || 1));
     loading(true);
     try {
-      await Api.saveLancamento(d);
-      showToast(this._item ? 'Atualizado!' : 'Lançamento salvo!');
+      if (n > 1) {
+        const [y, m, dia] = vencimento.split('-').map(Number);
+        const lista = Array.from({ length: n }, (_, i) => {
+          const mm = m - 1 + i, ano = y + Math.floor(mm / 12), mes = mm % 12;
+          const ult = new Date(ano, mes + 1, 0).getDate();
+          return {
+            ...d, id: crypto.randomUUID(), created_at: hoje(),
+            descricao: `${descricao} (${i + 1}/${n})`,
+            vencimento: `${ano}-${String(mes + 1).padStart(2, '0')}-${String(Math.min(dia, ult)).padStart(2, '0')}`,
+            status: i === 0 ? d.status : 'pendente',
+            pagamento: i === 0 ? d.pagamento : null,
+          };
+        });
+        await Api.saveLancamentos(lista);
+      } else await Api.saveLancamento(d);
+      showToast(n > 1 ? `${n} parcelas lançadas!` : this._item ? 'Atualizado!' : 'Lançamento salvo!');
       this.close();
       await App.load();
     } catch (e) { showToast('Erro: ' + e.message, 4000); }
@@ -127,19 +144,36 @@ const App = {
   charts: [],
 
   async init() {
-    const y = new Date().getFullYear();
-    document.getElementById('fAno').innerHTML = [y - 2, y - 1, y, y + 1].map(a => `<option>${a}</option>`).join('');
-    document.getElementById('fAno').value = this.f.ano;
-    document.getElementById('fMes').innerHTML = '<option value="">Todos</option>' + MESES.map((m, i) => `<option value="${i + 1}">${m}</option>`).join('');
+    await this.atualizarAnos(true);
     document.getElementById('fEmp').innerHTML = '<option value="">Todas</option>' + CONFIG.empresas.map(e => `<option>${e}</option>`).join('');
     await this.load();
   },
 
+  async atualizarAnos(inicial) {
+    let anos = [];
+    try { anos = await Api.getAnos(); } catch (_) {}
+    const atual = String(new Date().getFullYear());
+    if (!anos.length) anos = [atual];
+    if (!anos.includes(this.f.ano)) this.f.ano = anos.includes(atual) ? atual : anos[anos.length - 1];
+    document.getElementById('fAno').innerHTML = anos.map(a => `<option>${a}</option>`).join('');
+    document.getElementById('fAno').value = this.f.ano;
+  },
+
+  atualizarMeses() {
+    const presentes = [...new Set(this.rows.map(r => +r.vencimento.split('-')[1]))].sort((a, b) => a - b);
+    if (this.f.mes && !presentes.includes(+this.f.mes)) this.f.mes = '';
+    const el = document.getElementById('fMes');
+    el.innerHTML = '<option value="">Todos</option>' + presentes.map(m => `<option value="${m}">${MESES[m - 1]}</option>`).join('');
+    el.value = this.f.mes;
+  },
+
   async load() {
+    await this.atualizarAnos();
     loading(true);
     try { this.rows = await Api.getLancamentos({ ano: this.f.ano }); }
     catch (e) { showToast('Erro ao carregar: ' + e.message, 4000); this.rows = []; }
     finally { loading(false); }
+    this.atualizarMeses();
     this.render();
   },
 

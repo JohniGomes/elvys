@@ -33,6 +33,13 @@ const Api = {
     return Api._q(Api._db.from('lancamentos').update(d).eq('id', d.id));
   },
 
+  saveLancamentos: (arr) => Api._q(Api._db.from('lancamentos').insert(arr)),
+
+  getAnos: async () => {
+    const rows = await Api._q(Api._db.from('lancamentos').select('vencimento'));
+    return [...new Set(rows.map(r => (r.vencimento || '').slice(0, 4)).filter(Boolean))].sort();
+  },
+
   deleteLancamento: (id) => Api._q(Api._db.from('lancamentos').delete().eq('id', id)),
 
   getResumoAno: async (ano) => {

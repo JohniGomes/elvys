@@ -8,7 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css?v=20261112e">
+  <link rel="stylesheet" href="css/styles.css?v=20261112f">
 </head>
 <body>
 <div id="loginOverlay">
@@ -102,6 +102,9 @@
       <div class="form-group"><label>Vencimento *</label><input type="date" id="fVencimento"></div>
       <div class="form-group"><label>Data de Pagamento</label><input type="date" id="fPagamento"></div>
     </div>
+    <div class="form-group" id="gParcelas"><label>Parcelas (repete todo mês)</label>
+      <input type="number" id="fParcelas" min="1" max="360" value="1">
+      <small style="color:var(--muted);font-size:.75rem">Ex.: consórcio de 60 meses = 60. O valor acima é o de cada parcela e o vencimento é o da 1ª.</small></div>
     <div class="form-group"><label>Observação</label><textarea id="fObs" rows="2" placeholder="Opcional..."></textarea></div>
     <div class="modal-actions">
       <button class="btn-delete" id="btnDelete" onclick="Modal.del()" style="display:none">Excluir</button>
@@ -113,7 +116,7 @@
 
 <script src="js/config.js?v=20261112b"></script>
 <script src="js/api.js?v=20261112b"></script>
-<script src="js/app.js?v=20261112e"></script>
-<script src="js/auth.js?v=20261112e"></script>
+<script src="js/app.js?v=20261112f"></script>
+<script src="js/auth.js?v=20261112f"></script>
 </body>
 </html>
