@@ -3,131 +3,93 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Financeiro Pessoal</title>
+  <title>Financeiro Elvys</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>">
-
-  <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <!-- Google Fonts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
-  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/styles.css?v=20261112b">
 </head>
 <body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><i>$</i> Financeiro</div>
+    <div class="nav-label">MENU</div>
+    <button class="nav-item active" data-view="dash" onclick="App.setView('dash')">▦ Dashboard</button>
+    <button class="nav-item" data-view="lanc" onclick="App.setView('lanc')">☰ Lançamentos</button>
+    <div class="side-foot"><b>Tamboleco · Anagesso · Pessoal</b>Tudo num só lugar.</div>
+  </aside>
 
-  <!-- TOP BAR -->
-  <header id="topbar">
-    <h1>💰 Financeiro</h1>
-    <button class="btn-novo" onclick="Modal.open()">+ Novo Lançamento</button>
-  </header>
-
-  <!-- CONTENT -->
-  <div id="content"></div>
-
-  <!-- LOADING -->
-  <div id="loading">
-    <div class="spinner"></div>
-  </div>
-
-  <!-- TOAST -->
-  <div id="toast"></div>
-
-  <!-- MODAL -->
-  <div id="modalBackdrop" class="modal-backdrop hidden" onclick="if(event.target===this)Modal.close()">
-    <div class="modal-box">
-      <h3 id="modalTitle">Novo Lançamento</h3>
-
-      <!-- Tipo -->
-      <div class="form-group">
-        <label>Tipo</label>
-        <div class="tipo-toggle">
-          <button id="btnTipoPagar"   class="active-pagar"   onclick="Modal.setTipo('pagar')">↑ A Pagar</button>
-          <button id="btnTipoReceber" onclick="Modal.setTipo('receber')">↓ A Receber</button>
-        </div>
+  <section class="main">
+    <div class="topcard">
+      <div class="grow">
+        <h2 id="pageTitle">Dashboard</h2>
+        <p id="pageSub">Visão geral das suas finanças.</p>
       </div>
+      <button class="btn-novo" onclick="Modal.open()">+ Novo Lançamento</button>
+    </div>
 
-      <div class="form-row">
-        <!-- Empresa -->
-        <div class="form-group">
-          <label>Empresa / Origem</label>
-          <select id="fEmpresa" onchange="Modal._updateCats()">
-            <!-- preenchido pelo JS -->
-          </select>
-        </div>
-        <!-- Categoria -->
-        <div class="form-group">
-          <label>Categoria</label>
-          <select id="fCategoria">
-            <!-- preenchido pelo JS -->
-          </select>
-        </div>
-      </div>
+    <div class="filters">
+      <div><label>ANO</label><select id="fAno" onchange="App.setFiltro('ano',this.value)"></select></div>
+      <div><label>MÊS</label><select id="fMes" onchange="App.setFiltro('mes',this.value)"></select></div>
+      <div><label>EMPRESA</label><select id="fEmp" onchange="App.setFiltro('empresa',this.value)"></select></div>
+      <div><label>TIPO</label>
+        <select id="fTip" onchange="App.setFiltro('tipo',this.value)">
+          <option value="">Todos</option><option value="pagar">A Pagar</option><option value="receber">A Receber</option>
+        </select></div>
+      <div><label>STATUS</label>
+        <select id="fSta" onchange="App.setFiltro('status',this.value)">
+          <option value="">Todos</option><option value="pendente">Pendente</option><option value="pago">Pago</option>
+          <option value="recebido">Recebido</option><option value="atrasado">Atrasado</option><option value="cancelado">Cancelado</option>
+        </select></div>
+      <button class="clear" onclick="App.limpar()">Limpar filtros</button>
+    </div>
 
-      <!-- Descrição -->
-      <div class="form-group">
-        <label>Descrição *</label>
-        <input type="text" id="fDescricao" placeholder="Ex: Conta de água, Salário, NF...">
-      </div>
+    <div id="content"></div>
+  </section>
+</div>
 
-      <!-- Parceiro -->
-      <div class="form-group" id="fParceiro">
-        <label>Fornecedor</label>
-        <input type="text" placeholder="Nome do fornecedor ou cliente">
-      </div>
+<div id="loading"><div class="spinner"></div></div>
+<div id="toast"></div>
 
-      <div class="form-row">
-        <!-- Valor -->
-        <div class="form-group">
-          <label>Valor (R$) *</label>
-          <input type="number" id="fValor" placeholder="0,00" min="0" step="0.01">
-        </div>
-        <!-- Status -->
-        <div class="form-group">
-          <label>Status</label>
-          <select id="fStatus">
-            <!-- preenchido pelo JS -->
-          </select>
-        </div>
-      </div>
-
-      <div class="form-row">
-        <!-- Vencimento -->
-        <div class="form-group">
-          <label>Vencimento *</label>
-          <input type="date" id="fVencimento">
-        </div>
-        <!-- Pagamento efetivo -->
-        <div class="form-group">
-          <label>Data de Pagamento</label>
-          <input type="date" id="fPagamento">
-        </div>
-      </div>
-
-      <!-- Observação -->
-      <div class="form-group">
-        <label>Observação</label>
-        <textarea id="fObs" rows="2" placeholder="Opcional..."></textarea>
-      </div>
-
-      <div class="modal-actions">
-        <button class="btn-delete" id="btnDelete" onclick="Modal.del()" style="display:none">Excluir</button>
-        <button class="btn-cancel" onclick="Modal.close()">Cancelar</button>
-        <button class="btn-save"   onclick="Modal.save()">Salvar</button>
+<div id="modalBackdrop" class="modal-backdrop hidden" onclick="if(event.target===this)Modal.close()">
+  <div class="modal-box">
+    <h3 id="modalTitle">Novo Lançamento</h3>
+    <div class="form-group">
+      <label>Tipo</label>
+      <div class="tipo-toggle">
+        <button id="btnTipoPagar" class="active-pagar" onclick="Modal.setTipo('pagar')">↑ A Pagar</button>
+        <button id="btnTipoReceber" onclick="Modal.setTipo('receber')">↓ A Receber</button>
       </div>
     </div>
+    <div class="form-row">
+      <div class="form-group"><label>Empresa / Origem</label><select id="fEmpresa" onchange="Modal._updateCats()"></select></div>
+      <div class="form-group"><label>Categoria</label><select id="fCategoria"></select></div>
+    </div>
+    <div class="form-group">
+      <label id="lblNovaCat" style="cursor:pointer;color:var(--g700)" onclick="Modal.novaCat()">+ Nova categoria</label>
+    </div>
+    <div class="form-group"><label>Descrição *</label><input type="text" id="fDescricao" placeholder="Ex: Conta de água, Salário, NF..."></div>
+    <div class="form-group"><label id="lblParceiro">Fornecedor</label><input type="text" id="fParceiro" placeholder="Nome do fornecedor ou cliente"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Valor (R$) *</label><input type="number" id="fValor" placeholder="0,00" min="0" step="0.01"></div>
+      <div class="form-group"><label>Status</label><select id="fStatus"></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Vencimento *</label><input type="date" id="fVencimento"></div>
+      <div class="form-group"><label>Data de Pagamento</label><input type="date" id="fPagamento"></div>
+    </div>
+    <div class="form-group"><label>Observação</label><textarea id="fObs" rows="2" placeholder="Opcional..."></textarea></div>
+    <div class="modal-actions">
+      <button class="btn-delete" id="btnDelete" onclick="Modal.del()" style="display:none">Excluir</button>
+      <button class="btn-cancel" onclick="Modal.close()">Cancelar</button>
+      <button class="btn-save" onclick="Modal.save()">Salvar</button>
+    </div>
   </div>
+</div>
 
-  <!-- Scripts -->
-  <script src="js/config.js?v=20261112a"></script>
-  <script src="js/api.js?v=20261112a"></script>
-  <script src="js/app.js?v=20261112a"></script>
-
-  <script>
-    // Preenche select de empresas no modal
-    document.addEventListener('DOMContentLoaded', () => {
-      const sel = document.getElementById('fEmpresa');
-      sel.innerHTML = CONFIG.empresas.map(e => `<option value="${e}">${e}</option>`).join('');
-    });
-  </script>
+<script src="js/config.js?v=20261112b"></script>
+<script src="js/api.js?v=20261112b"></script>
+<script src="js/app.js?v=20261112b"></script>
 </body>
 </html>

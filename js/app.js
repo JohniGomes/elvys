@@ -1,349 +1,341 @@
-/* ── UTILS ── */
 const fmt = v => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
-
-const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
-                'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const fmtK = v => Math.abs(v) >= 1000 ? (v / 1000).toFixed(1).replace('.', ',') + 'k' : String(Math.round(v));
+const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const MES_CURTO = MESES.map(m => m.slice(0, 3));
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const hoje = () => new Date().toISOString().split('T')[0];
+const num = v => parseFloat(v) || 0;
+const fmtData = d => (d || '').split('-').reverse().join('/');
 
 function showToast(msg, ms = 2500) {
   const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
+  t.textContent = msg; t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), ms);
 }
+function loading(on) { document.getElementById('loading').classList.toggle('hidden', !on); }
 
-function loading(on) {
-  document.getElementById('loading').classList.toggle('hidden', !on);
+// pendente vencido vira atrasado automaticamente
+function effStatus(r) {
+  return (r.status === 'pendente' && r.vencimento < hoje()) ? 'atrasado' : r.status;
 }
+const isLiquidado = r => r.status === 'pago' || r.status === 'recebido';
 
-/* ── CATEGORIES ── */
 const Cats = {
-  _get() {
-    try { return JSON.parse(localStorage.getItem(CONFIG.CATS_KEY)) || {}; } catch { return {}; }
-  },
-  forEmpresa(empresa) {
-    const saved = this._get()[empresa];
-    return saved || (CONFIG.defaultCats[empresa] || ['Outros']);
-  },
-  add(empresa, cat) {
+  _get() { try { return JSON.parse(localStorage.getItem(CONFIG.CATS_KEY)) || {}; } catch { return {}; } },
+  forEmpresa(e) { return this._get()[e] || CONFIG.defaultCats[e] || ['Outros']; },
+  add(e, cat) {
     const data = this._get();
-    if (!data[empresa]) data[empresa] = this.forEmpresa(empresa);
-    if (!data[empresa].includes(cat)) data[empresa].push(cat);
+    if (!data[e]) data[e] = [...this.forEmpresa(e)];
+    if (!data[e].includes(cat)) data[e].push(cat);
     localStorage.setItem(CONFIG.CATS_KEY, JSON.stringify(data));
   },
 };
 
-/* ── MODAL ── */
 const Modal = {
-  _item: null,
-  _tipo: 'pagar',
+  _item: null, _tipo: 'pagar',
 
-  open(item) {
-    this._item = item || null;
-    this._tipo = item ? item.tipo : 'pagar';
-    this._render();
-    document.getElementById('modalBackdrop').classList.remove('hidden');
-  },
-
-  close() {
-    document.getElementById('modalBackdrop').classList.add('hidden');
-    this._item = null;
-  },
+  open(item) { this._item = item || null; this._tipo = item ? item.tipo : 'pagar'; this._render(); document.getElementById('modalBackdrop').classList.remove('hidden'); },
+  openById(id) { this.open(App.rows.find(r => r.id === id)); },
+  close() { document.getElementById('modalBackdrop').classList.add('hidden'); this._item = null; },
 
   setTipo(t) {
     this._tipo = t;
-    document.getElementById('btnTipoPagar').className   = t === 'pagar'   ? 'active-pagar'   : '';
+    document.getElementById('btnTipoPagar').className = t === 'pagar' ? 'active-pagar' : '';
     document.getElementById('btnTipoReceber').className = t === 'receber' ? 'active-receber' : '';
-    this._updateCats();
+    document.getElementById('lblParceiro').textContent = t === 'pagar' ? 'Fornecedor' : 'Cliente';
     this._updateStatusOpts();
-    document.getElementById('fParceiro').querySelector('label').textContent =
-      t === 'pagar' ? 'Fornecedor' : 'Cliente';
   },
 
-  _updateCats() {
-    const emp = document.getElementById('fEmpresa').value || CONFIG.empresas[0];
-    const sel = document.getElementById('fCategoria');
-    const cur = sel.value;
-    sel.innerHTML = Cats.forEmpresa(emp).map(c => `<option value="${c}">${c}</option>`).join('');
-    if (cur) sel.value = cur;
+  _updateCats(sel) {
+    const emp = document.getElementById('fEmpresa').value;
+    const el = document.getElementById('fCategoria');
+    el.innerHTML = Cats.forEmpresa(emp).map(c => `<option>${esc(c)}</option>`).join('');
+    if (sel) el.value = sel;
   },
 
-  _updateStatusOpts() {
-    const sel = document.getElementById('fStatus');
-    const opts = this._tipo === 'pagar'
-      ? ['pendente','pago','atrasado','cancelado']
-      : ['pendente','recebido','atrasado','cancelado'];
-    sel.innerHTML = opts.map(s => `<option value="${s}">${s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('');
+  novaCat() {
+    const nome = (prompt('Nome da nova categoria:') || '').trim();
+    if (!nome) return;
+    const emp = document.getElementById('fEmpresa').value;
+    Cats.add(emp, nome);
+    this._updateCats(nome);
+  },
+
+  _updateStatusOpts(sel) {
+    const opts = this._tipo === 'pagar' ? ['pendente', 'pago', 'cancelado'] : ['pendente', 'recebido', 'cancelado'];
+    const el = document.getElementById('fStatus');
+    el.innerHTML = opts.map(s => `<option value="${s}">${s[0].toUpperCase() + s.slice(1)}</option>`).join('');
+    if (sel && opts.includes(sel)) el.value = sel;
   },
 
   _render() {
     const d = this._item;
-    const t = this._tipo;
-    const today = new Date().toISOString().split('T')[0];
-
     document.getElementById('modalTitle').textContent = d ? 'Editar Lançamento' : 'Novo Lançamento';
-
-    document.getElementById('btnTipoPagar').className   = t === 'pagar'   ? 'active-pagar'   : '';
-    document.getElementById('btnTipoReceber').className = t === 'receber' ? 'active-receber' : '';
-
-    document.getElementById('fEmpresa').value    = d ? d.empresa    : CONFIG.empresas[0];
-    document.getElementById('fDescricao').value  = d ? d.descricao  : '';
-    document.getElementById('fParceiro').querySelector('input').value = d ? (d.parceiro || '') : '';
-    document.getElementById('fValor').value      = d ? d.valor      : '';
-    document.getElementById('fVencimento').value = d ? d.vencimento : today;
-    document.getElementById('fPagamento').value  = d ? (d.pagamento || '') : '';
-    document.getElementById('fObs').value        = d ? (d.obs || '') : '';
-
-    this._updateCats();
-    document.getElementById('fCategoria').value = d ? (d.categoria || '') : '';
-    this._updateStatusOpts();
-    document.getElementById('fStatus').value = d ? d.status : 'pendente';
-
+    document.getElementById('fEmpresa').innerHTML = CONFIG.empresas.map(e => `<option>${e}</option>`).join('');
+    document.getElementById('fEmpresa').value = d ? d.empresa : (App.f.empresa || CONFIG.empresas[0]);
+    this._updateCats(d && d.categoria);
+    this.setTipo(this._tipo);
+    this._updateStatusOpts(d ? d.status : 'pendente');
+    document.getElementById('fDescricao').value = d ? d.descricao : '';
+    document.getElementById('fParceiro').value = d ? (d.parceiro || '') : '';
+    document.getElementById('fValor').value = d ? d.valor : '';
+    document.getElementById('fVencimento').value = d ? d.vencimento : hoje();
+    document.getElementById('fPagamento').value = d ? (d.pagamento || '') : '';
+    document.getElementById('fObs').value = d ? (d.obs || '') : '';
     document.getElementById('btnDelete').style.display = d ? 'block' : 'none';
-    document.getElementById('fParceiro').querySelector('label').textContent =
-      t === 'pagar' ? 'Fornecedor' : 'Cliente';
   },
 
   async save() {
     const descricao = document.getElementById('fDescricao').value.trim();
-    const valor     = parseFloat(document.getElementById('fValor').value);
+    const valor = parseFloat(document.getElementById('fValor').value);
     const vencimento = document.getElementById('fVencimento').value;
-    if (!descricao || !valor || !vencimento) { showToast('Preencha Descrição, Valor e Vencimento.'); return; }
-
-    const empresa   = document.getElementById('fEmpresa').value;
-    const categoria = document.getElementById('fCategoria').value;
-    const newCat    = document.getElementById('fCategoria').value;
-
+    if (!descricao || !valor || !vencimento) return showToast('Preencha Descrição, Valor e Vencimento.');
     const d = {
       ...(this._item || {}),
-      tipo:       this._tipo,
-      empresa,
-      categoria,
-      descricao,
-      parceiro:   document.getElementById('fParceiro').querySelector('input').value.trim(),
-      valor,
-      status:     document.getElementById('fStatus').value,
-      vencimento,
-      pagamento:  document.getElementById('fPagamento').value || null,
-      obs:        document.getElementById('fObs').value.trim() || null,
+      tipo: this._tipo,
+      empresa: document.getElementById('fEmpresa').value,
+      categoria: document.getElementById('fCategoria').value,
+      descricao, valor, vencimento,
+      parceiro: document.getElementById('fParceiro').value.trim(),
+      status: document.getElementById('fStatus').value,
+      pagamento: document.getElementById('fPagamento').value || null,
+      obs: document.getElementById('fObs').value.trim() || null,
     };
-
-    if (categoria && !Cats.forEmpresa(empresa).includes(categoria)) {
-      Cats.add(empresa, categoria);
-    }
-
     loading(true);
     try {
       await Api.saveLancamento(d);
       showToast(this._item ? 'Atualizado!' : 'Lançamento salvo!');
       this.close();
-      App.refresh();
-    } catch (e) {
-      showToast('Erro: ' + e.message, 4000);
-    } finally {
-      loading(false);
-    }
+      await App.load();
+    } catch (e) { showToast('Erro: ' + e.message, 4000); }
+    finally { loading(false); }
   },
 
   async del() {
-    if (!this._item) return;
-    if (!confirm('Excluir este lançamento?')) return;
+    if (!this._item || !confirm('Excluir este lançamento?')) return;
     loading(true);
-    try {
-      await Api.deleteLancamento(this._item.id);
-      showToast('Excluído!');
-      this.close();
-      App.refresh();
-    } catch (e) {
-      showToast('Erro: ' + e.message, 4000);
-    } finally {
-      loading(false);
-    }
+    try { await Api.deleteLancamento(this._item.id); showToast('Excluído!'); this.close(); await App.load(); }
+    catch (e) { showToast('Erro: ' + e.message, 4000); }
+    finally { loading(false); }
   },
 };
 
-/* ── APP ── */
 const App = {
-  _view: 'home',  // 'home' | 'month'
-  _ano: new Date().getFullYear(),
-  _mes: null,
-  _filtroEmpresa: '',
-  _filtroTipo: '',
-  _filtroStatus: '',
-  _resumo: {},
-  _lancamentos: [],
+  view: 'dash',
+  rows: [],
+  f: { ano: String(new Date().getFullYear()), mes: '', empresa: '', tipo: '', status: '' },
+  charts: [],
 
   async init() {
-    await this.loadHome();
-    document.getElementById('loading').classList.add('hidden');
+    const y = new Date().getFullYear();
+    document.getElementById('fAno').innerHTML = [y - 2, y - 1, y, y + 1].map(a => `<option>${a}</option>`).join('');
+    document.getElementById('fAno').value = this.f.ano;
+    document.getElementById('fMes').innerHTML = '<option value="">Todos</option>' + MESES.map((m, i) => `<option value="${i + 1}">${m}</option>`).join('');
+    document.getElementById('fEmp').innerHTML = '<option value="">Todas</option>' + CONFIG.empresas.map(e => `<option>${e}</option>`).join('');
+    await this.load();
   },
 
-  async loadHome() {
+  async load() {
     loading(true);
-    try {
-      this._resumo = await Api.getResumoAno(this._ano);
-    } catch (e) {
-      showToast('Erro ao carregar: ' + e.message, 4000);
-    } finally {
-      loading(false);
-    }
-    this._view = 'home';
-    this._mes  = null;
-    this._filtroEmpresa = '';
-    this._filtroTipo = '';
-    this._filtroStatus = '';
+    try { this.rows = await Api.getLancamentos({ ano: this.f.ano }); }
+    catch (e) { showToast('Erro ao carregar: ' + e.message, 4000); this.rows = []; }
+    finally { loading(false); }
     this.render();
   },
 
-  async loadMonth(mes) {
-    this._mes  = mes;
-    this._view = 'month';
-    this._filtroEmpresa = '';
-    this._filtroTipo = '';
-    this._filtroStatus = '';
-    await this.fetchMonth();
-  },
+  setFiltro(k, v) { this.f[k] = v; k === 'ano' ? this.load() : this.render(); },
 
-  async fetchMonth() {
-    loading(true);
-    try {
-      this._lancamentos = await Api.getLancamentos({
-        ano: this._ano,
-        mes: this._mes,
-        empresa: this._filtroEmpresa || undefined,
-        tipo:    this._filtroTipo    || undefined,
-        status:  this._filtroStatus  || undefined,
-      });
-    } catch (e) {
-      showToast('Erro: ' + e.message, 4000);
-    } finally {
-      loading(false);
-    }
+  limpar() {
+    this.f = { ...this.f, mes: '', empresa: '', tipo: '', status: '' };
+    ['fMes', 'fEmp', 'fTip', 'fSta'].forEach(id => document.getElementById(id).value = '');
     this.render();
   },
 
-  async refresh() {
-    if (this._view === 'home') await this.loadHome();
-    else await this.fetchMonth();
+  setView(v) {
+    this.view = v;
+    document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.view === v));
+    document.getElementById('pageTitle').textContent = v === 'dash' ? 'Dashboard' : 'Lançamentos';
+    this.render();
   },
 
-  renderHome() {
-    const r = this._resumo;
-    const cards = MESES.map((nome, i) => {
-      const m = i + 1;
-      const d = r[m] || {};
-      const pagar   = d.pagar   || 0;
-      const receber = d.receber || 0;
-      const pago    = d.pago    || 0;
-      const recebido = d.recebido || 0;
-      const pendentePagar   = pagar   - pago;
-      const pendenteReceber = receber - recebido;
-      const saldo = receber - pagar;
-      const hoje = new Date();
-      const isAtrasado = m < hoje.getMonth() + 1 && pendentePagar > 0 && hoje.getFullYear() === this._ano;
-      return `
-        <div class="month-card" onclick="App.loadMonth(${m})">
-          ${isAtrasado ? '<span class="m-badge-atrasado">Atrasado</span>' : ''}
-          <div class="m-name">${nome}</div>
-          <div class="m-row"><span>A Pagar</span><span class="m-pagar">${fmt(pagar)}</span></div>
-          <div class="m-row"><span>A Receber</span><span class="m-receber">${fmt(receber)}</span></div>
-          <div class="m-row" style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px;">
-            <span>Saldo</span>
-            <span class="${saldo >= 0 ? 'm-saldo-pos' : 'm-saldo-neg'}">${fmt(saldo)}</span>
-          </div>
-        </div>`;
-    }).join('');
-
-    return `
-      <div class="year-nav">
-        <button onclick="App.changeYear(-1)">‹</button>
-        <span>${this._ano}</span>
-        <button onclick="App.changeYear(1)">›</button>
-      </div>
-      <div class="month-grid">${cards}</div>`;
-  },
-
-  renderMonth() {
-    const nome  = MESES[this._mes - 1];
-    const rows  = this._lancamentos;
-    const total_pagar   = rows.filter(r => r.tipo === 'pagar').reduce((s,r) => s + (parseFloat(r.valor)||0), 0);
-    const total_receber = rows.filter(r => r.tipo === 'receber').reduce((s,r) => s + (parseFloat(r.valor)||0), 0);
-    const saldo = total_receber - total_pagar;
-
-    const empresaOpts = CONFIG.empresas.map(e => `<option value="${e}">${e}</option>`).join('');
-    const statusOpts  = ['pendente','pago','recebido','atrasado','cancelado']
-      .map(s => `<option value="${s}">${s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('');
-
-    const items = rows.length ? rows.map(r => {
-      const isAtrasado = r.status === 'atrasado';
-      const statusLabel = r.status.charAt(0).toUpperCase() + r.status.slice(1);
-      return `
-        <div class="tx-item${isAtrasado ? ' atrasado' : ''}" onclick="Modal.open(${JSON.stringify(r).replace(/"/g,'&quot;')})">
-          <span class="tx-tipo-dot ${r.tipo}"></span>
-          <div>
-            <div class="tx-desc">${r.descricao}</div>
-            <div class="tx-meta">${r.empresa} · ${r.categoria || ''} ${r.parceiro ? '· ' + r.parceiro : ''} · Venc. ${r.vencimento}</div>
-          </div>
-          <span class="tx-valor ${r.tipo}">${r.tipo === 'pagar' ? '-' : '+'}${fmt(r.valor)}</span>
-          <span class="tx-status-badge status-${r.status}">${statusLabel}</span>
-        </div>`;
-    }).join('') : '<div class="empty-msg">Nenhum lançamento neste mês.</div>';
-
-    return `
-      <div class="month-header">
-        <button class="btn-back" onclick="App.loadHome()">← Voltar</button>
-        <h2>${nome} ${this._ano}</h2>
-      </div>
-      <div class="kpi-row">
-        <div class="kpi-card">
-          <div class="kpi-label">A Pagar</div>
-          <div class="kpi-val m-pagar">${fmt(total_pagar)}</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-label">A Receber</div>
-          <div class="kpi-val m-receber">${fmt(total_receber)}</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-label">Saldo</div>
-          <div class="kpi-val ${saldo >= 0 ? 'm-saldo-pos' : 'm-saldo-neg'}">${fmt(saldo)}</div>
-        </div>
-      </div>
-      <div class="filters">
-        <select onchange="App.setFiltro('empresa',this.value)">
-          <option value="">Todas empresas</option>
-          ${empresaOpts}
-        </select>
-        <select onchange="App.setFiltro('tipo',this.value)">
-          <option value="">Todos tipos</option>
-          <option value="pagar">A Pagar</option>
-          <option value="receber">A Receber</option>
-        </select>
-        <select onchange="App.setFiltro('status',this.value)">
-          <option value="">Todos status</option>
-          ${statusOpts}
-        </select>
-      </div>
-      <div class="tx-list">${items}</div>`;
+  // aplica filtros; ignoreMes=true mantém o ano inteiro (para o gráfico mensal)
+  filtrar(ignoreMes = false) {
+    const { mes, empresa, tipo, status } = this.f;
+    return this.rows.filter(r => {
+      if (empresa && r.empresa !== empresa) return false;
+      if (tipo && r.tipo !== tipo) return false;
+      if (status && effStatus(r) !== status) return false;
+      if (!ignoreMes && mes && parseInt(r.vencimento.split('-')[1]) !== +mes) return false;
+      return true;
+    });
   },
 
   render() {
-    const el = document.getElementById('content');
-    el.innerHTML = this._view === 'home' ? this.renderHome() : this.renderMonth();
+    this.charts.forEach(c => c.destroy());
+    this.charts = [];
+    const mesTxt = this.f.mes ? MESES[this.f.mes - 1] + ' de ' : '';
+    document.getElementById('pageSub').textContent =
+      `${mesTxt}${this.f.ano}${this.f.empresa ? ' · ' + this.f.empresa : ' · Todas as empresas'}`;
+    document.getElementById('content').innerHTML = this.view === 'dash' ? this.htmlDash() : this.htmlLanc();
+    if (this.view === 'dash') this.drawCharts();
   },
 
-  changeYear(d) {
-    this._ano += d;
-    this.loadHome();
+  resumo(rows) {
+    const s = { pagar: 0, receber: 0, pago: 0, recebido: 0, atrasadoQtd: 0, atrasadoVal: 0, qtd: rows.length };
+    rows.forEach(r => {
+      if (r.status === 'cancelado') return;
+      const v = num(r.valor);
+      s[r.tipo] += v;
+      if (r.status === 'pago') s.pago += v;
+      if (r.status === 'recebido') s.recebido += v;
+      if (effStatus(r) === 'atrasado') { s.atrasadoQtd++; s.atrasadoVal += v; }
+    });
+    return s;
   },
 
-  setFiltro(key, val) {
-    if (key === 'empresa') this._filtroEmpresa = val;
-    if (key === 'tipo')    this._filtroTipo    = val;
-    if (key === 'status')  this._filtroStatus  = val;
-    this.fetchMonth();
+  htmlDash() {
+    const rows = this.filtrar();
+    const s = this.resumo(rows);
+    const saldo = s.receber - s.pagar;
+    const saldoReal = s.recebido - s.pago;
+
+    // categorias (somente despesas) top 6
+    const cat = {};
+    rows.filter(r => r.tipo === 'pagar' && r.status !== 'cancelado').forEach(r => {
+      const k = r.categoria || 'Sem categoria'; cat[k] = (cat[k] || 0) + num(r.valor);
+    });
+    const cats = Object.entries(cat).sort((a, b) => b[1] - a[1]).slice(0, 6);
+    const maxCat = cats.length ? cats[0][1] : 1;
+    const catHtml = cats.length ? cats.map(([k, v]) => `
+      <div class="bar-row"><div class="bar-top"><span>${esc(k)}</span><span>${fmt(v)}</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width:${(v / maxCat * 100).toFixed(0)}%"></div></div></div>`).join('')
+      : '<div class="empty">Sem despesas no filtro.</div>';
+
+    // próximos / atrasados
+    const abertos = rows.filter(r => r.status === 'pendente').sort((a, b) => a.vencimento.localeCompare(b.vencimento)).slice(0, 7);
+    const abertosHtml = abertos.length ? abertos.map(r => this.htmlTx(r)).join('') : '<div class="empty">Nada pendente 🎉</div>';
+
+    return `
+      <div class="kpis">
+        <div class="kpi hero"><div class="k-label">Saldo previsto</div><div class="k-val">${fmt(saldo)}</div>
+          <div class="k-sub">Realizado: ${fmt(saldoReal)}</div></div>
+        <div class="kpi"><div class="k-label">A Receber</div><div class="k-val" style="color:var(--g700)">${fmt(s.receber)}</div>
+          <div class="k-sub">Recebido ${fmt(s.recebido)} · falta ${fmt(s.receber - s.recebido)}</div></div>
+        <div class="kpi"><div class="k-label">A Pagar</div><div class="k-val" style="color:var(--red)">${fmt(s.pagar)}</div>
+          <div class="k-sub">Pago ${fmt(s.pago)} · falta ${fmt(s.pagar - s.pago)}</div></div>
+        <div class="kpi ${s.atrasadoQtd ? 'warn' : ''}"><div class="k-label">Atrasados</div><div class="k-val">${s.atrasadoQtd}</div>
+          <div class="k-sub">${s.atrasadoQtd ? fmt(s.atrasadoVal) + ' em atraso' : 'Tudo em dia'}</div></div>
+      </div>
+
+      <div class="grid2">
+        <div class="panel"><h3>Fluxo mensal <small>A Pagar × A Receber</small></h3>
+          <div class="chart-wrap"><canvas id="chMensal"></canvas></div></div>
+        <div class="panel"><h3>Liquidação <small>pago + recebido</small></h3>
+          <div class="chart-wrap"><canvas id="chGauge"></canvas>
+            <div class="center-val"><b id="gaugePct">0%</b><span>liquidado</span></div></div></div>
+      </div>
+
+      <div class="grid3">
+        <div class="panel"><h3>Por empresa <small>valor total</small></h3>
+          <div class="chart-wrap sm"><canvas id="chEmpresa"></canvas></div></div>
+        <div class="panel"><h3>Maiores despesas <small>por categoria</small></h3>${catHtml}</div>
+        <div class="panel"><h3>Próximos vencimentos <small>pendentes</small></h3>${abertosHtml}</div>
+      </div>`;
+  },
+
+  htmlTx(r) {
+    const st = effStatus(r);
+    return `<div class="tx" onclick="Modal.openById('${r.id}')">
+      <div class="ic ${r.tipo}">${r.tipo === 'pagar' ? '↑' : '↓'}</div>
+      <div><div class="d">${esc(r.descricao)}</div>
+        <div class="m">${esc(r.empresa)} · ${esc(r.categoria || '—')}${r.parceiro ? ' · ' + esc(r.parceiro) : ''} · ${fmtData(r.vencimento)}</div></div>
+      <div class="v ${r.tipo}">${r.tipo === 'pagar' ? '-' : '+'}${fmt(r.valor)}</div>
+      <span class="st st-${st}">${st[0].toUpperCase() + st.slice(1)}</span></div>`;
+  },
+
+  htmlLanc() {
+    const rows = this.filtrar().sort((a, b) => a.vencimento.localeCompare(b.vencimento));
+    if (!rows.length) return '<div class="panel"><div class="empty">Nenhum lançamento para os filtros selecionados.</div></div>';
+    const s = this.resumo(rows);
+    let html = `<div class="kpis" style="grid-template-columns:repeat(3,1fr)">
+      <div class="kpi"><div class="k-label">A Receber</div><div class="k-val" style="color:var(--g700)">${fmt(s.receber)}</div></div>
+      <div class="kpi"><div class="k-label">A Pagar</div><div class="k-val" style="color:var(--red)">${fmt(s.pagar)}</div></div>
+      <div class="kpi hero"><div class="k-label">Saldo</div><div class="k-val">${fmt(s.receber - s.pagar)}</div></div></div>
+      <div class="panel">`;
+    let atual = '';
+    rows.forEach(r => {
+      if (r.vencimento !== atual) {
+        atual = r.vencimento;
+        html += `<div class="day-head">${fmtData(atual)}</div>`;
+      }
+      html += this.htmlTx(r);
+    });
+    return html + '</div>';
+  },
+
+  drawCharts() {
+    const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+    const g500 = css('--g500'), g900 = css('--g900'), red = css('--red'), g100 = css('--g100');
+    Chart.defaults.font.family = 'Inter, system-ui, sans-serif';
+    Chart.defaults.color = css('--muted');
+
+    // mensal (ano inteiro, respeita empresa/tipo/status)
+    const ano = this.filtrar(true);
+    const pag = Array(12).fill(0), rec = Array(12).fill(0);
+    ano.forEach(r => {
+      if (r.status === 'cancelado') return;
+      const m = parseInt(r.vencimento.split('-')[1]) - 1;
+      (r.tipo === 'pagar' ? pag : rec)[m] += num(r.valor);
+    });
+    const sel = this.f.mes ? this.f.mes - 1 : -1;
+    const dim = (c, i) => sel === -1 || sel === i ? c : c + '55';
+    this.charts.push(new Chart(document.getElementById('chMensal'), {
+      type: 'bar',
+      data: {
+        labels: MES_CURTO,
+        datasets: [
+          { label: 'A Receber', data: rec, backgroundColor: rec.map((_, i) => dim(g500, i)), borderRadius: 8 },
+          { label: 'A Pagar', data: pag, backgroundColor: pag.map((_, i) => dim(red, i)), borderRadius: 8 },
+        ],
+      },
+      options: {
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } }, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${fmt(c.parsed.y)}` } } },
+        scales: { y: { ticks: { callback: v => fmtK(v) }, grid: { color: '#eef1ef' } }, x: { grid: { display: false } } },
+        onClick: (_, els) => {
+          if (!els.length) return;
+          const m = String(els[0].index + 1);
+          this.f.mes = this.f.mes === m ? '' : m;
+          document.getElementById('fMes').value = this.f.mes;
+          this.render();
+        },
+      },
+    }));
+
+    // gauge liquidado
+    const rows = this.filtrar();
+    const s = this.resumo(rows);
+    const total = s.pagar + s.receber, feito = s.pago + s.recebido;
+    const pct = total ? Math.round(feito / total * 100) : 0;
+    document.getElementById('gaugePct').textContent = pct + '%';
+    this.charts.push(new Chart(document.getElementById('chGauge'), {
+      type: 'doughnut',
+      data: { labels: ['Liquidado', 'Em aberto'], datasets: [{ data: [feito, Math.max(total - feito, 0)], backgroundColor: [g900, g100], borderWidth: 0 }] },
+      options: { maintainAspectRatio: false, rotation: -90, circumference: 180, cutout: '72%',
+        plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } }, tooltip: { callbacks: { label: c => `${c.label}: ${fmt(c.parsed)}` } } } },
+    }));
+
+    // por empresa
+    const emp = {};
+    rows.filter(r => r.status !== 'cancelado').forEach(r => { emp[r.empresa] = (emp[r.empresa] || 0) + num(r.valor); });
+    const labels = Object.keys(emp);
+    this.charts.push(new Chart(document.getElementById('chEmpresa'), {
+      type: 'doughnut',
+      data: { labels: labels.length ? labels : ['Sem dados'], datasets: [{ data: labels.length ? Object.values(emp) : [1], backgroundColor: labels.length ? [g900, g500, '#8fd0aa', '#d99100', '#2f7fd1'] : [g100], borderWidth: 0 }] },
+      options: { maintainAspectRatio: false, cutout: '62%',
+        plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } }, tooltip: { callbacks: { label: c => `${c.label}: ${fmt(c.parsed)}` } } } },
+    }));
   },
 };
 
-/* ── BOOT ── */
-document.addEventListener('DOMContentLoaded', () => {
-  App.init();
-});
+document.addEventListener('DOMContentLoaded', () => App.init());
