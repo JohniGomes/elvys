@@ -8,7 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css?v=20261112f">
+  <link rel="stylesheet" href="css/styles.css?v=20261112g">
 </head>
 <body>
 <div id="loginOverlay">
@@ -87,10 +87,10 @@
     </div>
     <div class="form-row">
       <div class="form-group"><label>Empresa / Origem</label><select id="fEmpresa" onchange="Modal._updateCats()"></select></div>
-      <div class="form-group"><label>Categoria</label><select id="fCategoria"></select></div>
-    </div>
-    <div class="form-group">
-      <label id="lblNovaCat" style="cursor:pointer;color:var(--g700)" onclick="Modal.novaCat()">+ Nova categoria</label>
+      <div class="form-group"><label>Categoria</label>
+        <div class="cat-row"><select id="fCategoria"></select>
+          <button type="button" class="cat-btn add" title="Adicionar categoria" onclick="Modal.novaCat()">+</button>
+          <button type="button" class="cat-btn del" title="Excluir categoria selecionada" onclick="Modal.removerCat()">−</button></div></div>
     </div>
     <div class="form-group"><label>Descrição *</label><input type="text" id="fDescricao" placeholder="Ex: Conta de água, Salário, NF..."></div>
     <div class="form-group"><label id="lblParceiro">Fornecedor</label><input type="text" id="fParceiro" placeholder="Nome do fornecedor ou cliente"></div>
@@ -116,7 +116,7 @@
 
 <script src="js/config.js?v=20261112b"></script>
 <script src="js/api.js?v=20261112b"></script>
-<script src="js/app.js?v=20261112f"></script>
-<script src="js/auth.js?v=20261112f"></script>
+<script src="js/app.js?v=20261112g"></script>
+<script src="js/auth.js?v=20261112g"></script>
 </body>
 </html>

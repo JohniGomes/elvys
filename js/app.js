@@ -23,6 +23,11 @@ const isLiquidado = r => r.status === 'pago' || r.status === 'recebido';
 const Cats = {
   _get() { try { return JSON.parse(localStorage.getItem(CONFIG.CATS_KEY)) || {}; } catch { return {}; } },
   forEmpresa(e) { return this._get()[e] || CONFIG.defaultCats[e] || ['Outros']; },
+  remove(e, cat) {
+    const data = this._get();
+    data[e] = this.forEmpresa(e).filter(c => c !== cat);
+    localStorage.setItem(CONFIG.CATS_KEY, JSON.stringify(data));
+  },
   add(e, cat) {
     const data = this._get();
     if (!data[e]) data[e] = [...this.forEmpresa(e)];
@@ -59,6 +64,16 @@ const Modal = {
     const emp = document.getElementById('fEmpresa').value;
     Cats.add(emp, nome);
     this._updateCats(nome);
+  },
+
+  removerCat() {
+    const emp = document.getElementById('fEmpresa').value;
+    const cat = document.getElementById('fCategoria').value;
+    if (!cat) return showToast('Nenhuma categoria selecionada.');
+    if (!confirm(`Excluir a categoria "${cat}" de ${emp}? Lançamentos já feitos não são alterados.`)) return;
+    Cats.remove(emp, cat);
+    this._updateCats();
+    showToast('Categoria excluída.');
   },
 
   _updateStatusOpts(sel) {

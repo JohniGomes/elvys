@@ -129,3 +129,9 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 .login-box .link{display:block;text-align:center;margin-top:14px;color:var(--g700);font-weight:600;cursor:pointer;font-size:.85rem}
 .login-msg{text-align:center;font-size:.82rem;margin-top:12px;min-height:1em}
 .login-msg.err{color:var(--red)} .login-msg.ok{color:var(--g700)}
+
+.cat-row{display:flex;gap:6px}
+.cat-row select{flex:1;min-width:0}
+.cat-btn{width:38px;border-radius:10px;border:1px solid var(--line);background:#f8faf8;font-size:1.2rem;font-weight:800;cursor:pointer;line-height:1}
+.cat-btn.add{color:var(--g700)} .cat-btn.add:hover{background:var(--g100)}
+.cat-btn.del{color:var(--red)} .cat-btn.del:hover{background:var(--red-bg)}
