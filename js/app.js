@@ -338,10 +338,18 @@ const App = {
     const rows = this.filtrar().sort((a, b) => a.vencimento.localeCompare(b.vencimento));
     if (!rows.length) return '<div class="panel"><div class="empty">Nenhum lançamento para os filtros selecionados.</div></div>';
     const s = this.resumo(rows);
+    const saldoReal = s.recebido - s.pago;
+    const saldoProv = (s.receber - s.recebido) - (s.pagar - s.pago);
     let html = `<div class="kpis" style="grid-template-columns:repeat(3,1fr)">
-      <div class="kpi"><div class="k-label">A Receber</div><div class="k-val" style="color:var(--g700)">${fmt(s.receber)}</div></div>
-      <div class="kpi"><div class="k-label">A Pagar</div><div class="k-val" style="color:var(--red)">${fmt(s.pagar)}</div></div>
-      <div class="kpi hero"><div class="k-label">Saldo</div><div class="k-val">${fmt(s.receber - s.pagar)}</div></div></div>
+      <div class="kpi"><div class="k-label">A Receber</div><div class="k-pair">
+        <div><span>Real</span><b style="color:var(--g700)">${fmt(s.recebido)}</b></div>
+        <div><span>Provisionado</span><b style="color:var(--g700)">${fmt(s.receber - s.recebido)}</b></div></div></div>
+      <div class="kpi"><div class="k-label">A Pagar</div><div class="k-pair">
+        <div><span>Real</span><b style="color:var(--red)">${fmt(s.pago)}</b></div>
+        <div><span>Provisionado</span><b style="color:var(--red)">${fmt(s.pagar - s.pago)}</b></div></div></div>
+      <div class="kpi hero"><div class="k-label">Saldo</div><div class="k-pair">
+        <div><span>Real</span><b>${fmt(saldoReal)}</b></div>
+        <div><span>Provisionado</span><b>${fmt(saldoProv)}</b></div></div></div></div>
       <div class="panel">`;
     let atual = '';
     rows.forEach(r => {
