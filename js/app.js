@@ -272,6 +272,7 @@ const App = {
     const s = this.resumo(rows);
     const saldo = s.receber - s.pagar;
     const saldoReal = s.recebido - s.pago;
+    const saldoProv = (s.receber - s.recebido) - (s.pagar - s.pago);
 
     // categorias (somente despesas) top 6
     const cat = {};
@@ -291,12 +292,18 @@ const App = {
 
     return `
       <div class="kpis">
-        <div class="kpi hero"><div class="k-label">Saldo previsto</div><div class="k-val">${fmt(saldo)}</div>
-          <div class="k-sub">Realizado: ${fmt(saldoReal)}</div></div>
-        <div class="kpi"><div class="k-label">A Receber</div><div class="k-val" style="color:var(--g700)">${fmt(s.receber)}</div>
-          <div class="k-sub">Recebido ${fmt(s.recebido)} · falta ${fmt(s.receber - s.recebido)}</div></div>
-        <div class="kpi"><div class="k-label">A Pagar</div><div class="k-val" style="color:var(--red)">${fmt(s.pagar)}</div>
-          <div class="k-sub">Pago ${fmt(s.pago)} · falta ${fmt(s.pagar - s.pago)}</div></div>
+        <div class="kpi hero"><div class="k-label">Saldo</div>
+          <div class="k-pair">
+            <div><span>Real</span><b>${fmt(saldoReal)}</b></div>
+            <div><span>Provisionado</span><b>${fmt(saldoProv)}</b></div></div></div>
+        <div class="kpi"><div class="k-label">A Receber</div>
+          <div class="k-pair">
+            <div><span>Real</span><b style="color:var(--g700)">${fmt(s.recebido)}</b></div>
+            <div><span>Provisionado</span><b style="color:var(--g700)">${fmt(s.receber - s.recebido)}</b></div></div></div>
+        <div class="kpi"><div class="k-label">A Pagar</div>
+          <div class="k-pair">
+            <div><span>Real</span><b style="color:var(--red)">${fmt(s.pago)}</b></div>
+            <div><span>Provisionado</span><b style="color:var(--red)">${fmt(s.pagar - s.pago)}</b></div></div></div>
         <div class="kpi ${s.atrasadoQtd ? 'warn' : ''}"><div class="k-label">Atrasados</div><div class="k-val">${s.atrasadoQtd}</div>
           <div class="k-sub">${s.atrasadoQtd ? fmt(s.atrasadoVal) + ' em atraso' : 'Tudo em dia'}</div></div>
       </div>

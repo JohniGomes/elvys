@@ -135,3 +135,8 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 .cat-btn{width:38px;border-radius:10px;border:1px solid var(--line);background:#f8faf8;font-size:1.2rem;font-weight:800;cursor:pointer;line-height:1}
 .cat-btn.add{color:var(--g700)} .cat-btn.add:hover{background:var(--g100)}
 .cat-btn.del{color:var(--red)} .cat-btn.del:hover{background:var(--red-bg)}
+
+.k-pair{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.k-pair span{display:block;font-size:.72rem;font-weight:600;opacity:.75;margin-bottom:4px}
+.k-pair b{font-size:1.2rem;font-weight:800;letter-spacing:-.02em;white-space:nowrap}
+.kpi:not(.hero) .k-pair span{color:var(--muted);opacity:1}
