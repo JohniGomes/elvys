@@ -140,3 +140,4 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 .k-pair span{display:block;font-size:.72rem;font-weight:600;opacity:.75;margin-bottom:4px}
 .k-pair b{font-size:1.2rem;font-weight:800;letter-spacing:-.02em;white-space:nowrap}
 .kpi:not(.hero) .k-pair span{color:var(--muted);opacity:1}
+.kpi .k-val + .k-pair{margin-top:6px;padding-top:10px;border-top:1px solid rgba(128,128,128,.2)}
